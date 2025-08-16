@@ -98,6 +98,41 @@ pm2 start ecosystem-simple.config.cjs
 ```
 
 ### ❌ Ошибка: Старый QR код
+**Проблема:** Бот отправляет старый QR код вместо нового
+
+**Решение:**
+```bash
+# 1. Используйте команду очистки QR кэша
+.clearqrcache
+
+# 2. Если команда не работает:
+pm2 stop all
+pm2 delete all
+
+# 3. Очистите кэш
+node clear-qr-cache.js
+
+# 4. Очистите временные файлы
+rm -rf tmp/*
+rm -rf storage/data/cache/*
+
+# 5. Перезапустите
+pm2 start ecosystem-simple.config.cjs
+```
+
+**Быстрое решение:**
+```bash
+# Windows
+fix-qr-cache.bat
+
+# Linux/Mac
+./fix-qr-cache.sh
+```
+
+**Причины проблемы:**
+- QR код кэшируется в памяти
+- Файлы QR кодов не удаляются
+- Кэш не очищается при перезапуске
 **Проблема:** Кэш QR кодов не обновляется
 
 **Решение:** 

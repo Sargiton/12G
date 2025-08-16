@@ -1,4 +1,6 @@
 import cacheManager from '../lib/cache.js';
+import fs from 'fs';
+import path from 'path';
 
 const handler = async (m, { conn, usedPrefix, command }) => {
   try {
@@ -7,21 +9,50 @@ const handler = async (m, { conn, usedPrefix, command }) => {
       return m.reply('❌ Эта команда доступна только владельцу бота');
     }
 
-    // Очищаем все QR коды из кэша
+    let clearedCount = 0;
+
+    // 1. Очистка кэша в памяти
     const qrKeys = cacheManager.nodeCache.keys().filter(key => key.startsWith('qr_'));
-    
     for (const key of qrKeys) {
       cacheManager.nodeCache.del(key);
+      clearedCount++;
     }
 
-    // Очищаем общий кэш
+    // 2. Очистка файлов QR кодов
+    const tmpDir = './tmp';
+    if (fs.existsSync(tmpDir)) {
+      const files = fs.readdirSync(tmpDir);
+      files.forEach(file => {
+        if (file.includes('qr') || file.includes('QR') || file.endsWith('.png') || file.endsWith('.jpg')) {
+          try {
+            fs.unlinkSync(path.join(tmpDir, file));
+            clearedCount++;
+          } catch (err) {
+            console.log(`❌ Ошибка удаления ${file}:`, err.message);
+          }
+        }
+      });
+    }
+
+    // 3. Очистка QR файлов в корне
+    const rootFiles = fs.readdirSync('.');
+    rootFiles.forEach(file => {
+      if (file.includes('qr') || file.includes('QR') || file === 'qr.png' || file === 'qr.jpg') {
+        try {
+          fs.unlinkSync(file);
+          clearedCount++;
+        } catch (err) {
+          console.log(`❌ Ошибка удаления QR файла ${file}:`, err.message);
+        }
+      }
+    });
+
+    // 4. Очистка общего кэша
     await cacheManager.clear();
 
-    const clearedCount = qrKeys.length;
-    
-    m.reply(`✅ Кэш QR кодов очищен!\n\n🗑️ Удалено QR кодов: ${clearedCount}\n🧹 Общий кэш очищен\n\nТеперь при следующем запросе QR кода будет сгенерирован новый.`);
+    m.reply(`✅ Кэш QR кодов полностью очищен!\n\n🗑️ Удалено элементов: ${clearedCount}\n🧹 Общий кэш очищен\n🧹 Файлы QR кодов удалены\n\nТеперь при следующем запросе QR кода будет сгенерирован новый.`);
 
-    console.log(`🧹 QR cache cleared by owner: ${clearedCount} QR codes removed`);
+    console.log(`🧹 QR cache completely cleared by owner: ${clearedCount} items removed`);
 
   } catch (error) {
     console.error('❌ Clear QR cache error:', error);

@@ -10,11 +10,11 @@ import ws from 'ws'
 import './plugins/_content.js'
 
 // Импорт оптимизированных модулей
-import cacheManager from './lib/cache.js';
-import messageQueue from './lib/queue.js';
-import performanceMonitor from './lib/monitor.js';
-import mediaProcessor from './lib/mediaProcessor.js';
-import pluginManager from './lib/pluginManager.js';
+const cacheManager = require('./lib/cache.js');
+const messageQueue = require('./lib/queue.js');
+const performanceMonitor = require('./lib/monitor.js');
+const mediaProcessor = require('./lib/mediaProcessor.js');
+const pluginManager = require('./lib/pluginManager.js');
 
 /**
  * @type {import('@whiskeysockets/baileys')}  

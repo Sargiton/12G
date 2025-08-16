@@ -9,6 +9,13 @@ import fetch from 'node-fetch'
 import ws from 'ws'
 import './plugins/_content.js'
 
+// Импорт оптимизированных модулей
+import cacheManager from './lib/cache.js';
+import messageQueue from './lib/queue.js';
+import performanceMonitor from './lib/monitor.js';
+import mediaProcessor from './lib/mediaProcessor.js';
+import pluginManager from './lib/pluginManager.js';
+
 /**
  * @type {import('@whiskeysockets/baileys')}  
  */
@@ -24,16 +31,21 @@ resolve()
  * @param {import('@whiskeysockets/baileys').BaileysEventMap<unknown>['messages.upsert']} groupsUpdate 
  */
 export async function handler(chatUpdate) {
-this.msgqueque = this.msgqueque || [];
-this.uptime = this.uptime || Date.now();
-if (!chatUpdate)
-return
-this.pushMessage(chatUpdate.messages).catch(console.error)
-let m = chatUpdate.messages[chatUpdate.messages.length - 1]
-if (!m)
-return
-if (global.db.data == null)
-await global.loadDatabase()
+  const startTime = performance.now();
+  
+  this.msgqueque = this.msgqueque || [];
+  this.uptime = this.uptime || Date.now();
+  
+  if (!chatUpdate) return;
+  
+  this.pushMessage(chatUpdate.messages).catch(console.error);
+  let m = chatUpdate.messages[chatUpdate.messages.length - 1];
+  
+  if (!m) return;
+  
+  if (global.db.data == null) {
+    await global.loadDatabase();
+  }
 try {
 m = smsg(this, m) || m
 if (!m)
@@ -42,23 +54,34 @@ m.exp = 0
 m.limit = false
 m.money = false
 try {
-let user = global.db.data.users[m.sender]
-if (typeof user !== 'object')
-global.db.data.users[m.sender] = {}
+  // Оптимизированная обработка пользователя с кэшированием
+  let user = await cacheManager.getUser(m.sender);
+  
+  if (!user) {
+    // Если нет в кэше, загружаем из базы данных
+    user = global.db.data.users[m.sender];
+    if (typeof user !== 'object') {
+      global.db.data.users[m.sender] = {};
+      user = global.db.data.users[m.sender];
+    }
+    
+    // Кэшируем пользователя
+    await cacheManager.setUser(m.sender, user);
+  }
 		
-if (user) {
-if (!isNumber(user.exp)) user.exp = 0
-if (!isNumber(user.money)) user.money = 150
-if (!isNumber(user.limit)) user.limit = 15 
-if (!('registered' in user)) user.registered = false
-if (!('premium' in user)) user.premium = false    
-                    
-if (!user.registered) {		                    	 
-if (!('name' in user)) user.name = m.name
-if (!('GBLanguage' in user)) user.GBLanguage = m.GBLanguage
-if (!isNumber(user.regTime)) user.regTime = -1
-if (!isNumber(user.age)) user.age = 0
-}
+  if (user) {
+    if (!isNumber(user.exp)) user.exp = 0;
+    if (!isNumber(user.money)) user.money = 150;
+    if (!isNumber(user.limit)) user.limit = 15;
+    if (!('registered' in user)) user.registered = false;
+    if (!('premium' in user)) user.premium = false;
+    
+    if (!user.registered) {
+      if (!('name' in user)) user.name = m.name;
+      if (!('GBLanguage' in user)) user.GBLanguage = m.GBLanguage;
+      if (!isNumber(user.regTime)) user.regTime = -1;
+      if (!isNumber(user.age)) user.age = 0;
+    }
 
 //if (!isNumber(user.GBLanguage)) user.GBLanguage = 0
 if (!isNumber(user.afk)) user.afk = -1
@@ -85,19 +108,30 @@ registered: false,
 role: '*NOVATO(A)* 🪤',
 }
 		
-let chat = global.db.data.chats[m.chat]
-if (typeof chat !== 'object')
-global.db.data.chats[m.chat] = {}
-                
-if (chat) {
-if (!('isBanned' in chat)) chat.isBanned = false    
-if (!('welcome' in chat)) chat.welcome = true            
-if (!('detect' in chat)) chat.detect = true                    
-if (!('sWelcome' in chat)) chat.sWelcome = ''            
-if (!('sBye' in chat)) chat.sBye = ''                    
-if (!('sPromote' in chat)) chat.sPromote = ''              
-if (!('sDemote' in chat)) chat.sDemote = '' 
-if (!('delete' in chat)) chat.delete = true                  
+  // Оптимизированная обработка чата с кэшированием
+  let chat = await cacheManager.getChat(m.chat);
+  
+  if (!chat) {
+    // Если нет в кэше, загружаем из базы данных
+    chat = global.db.data.chats[m.chat];
+    if (typeof chat !== 'object') {
+      global.db.data.chats[m.chat] = {};
+      chat = global.db.data.chats[m.chat];
+    }
+    
+    // Кэшируем чат
+    await cacheManager.setChat(m.chat, chat);
+  }
+  
+  if (chat) {
+    if (!('isBanned' in chat)) chat.isBanned = false;
+    if (!('welcome' in chat)) chat.welcome = true;
+    if (!('detect' in chat)) chat.detect = true;
+    if (!('sWelcome' in chat)) chat.sWelcome = '';
+    if (!('sBye' in chat)) chat.sBye = '';
+    if (!('sPromote' in chat)) chat.sPromote = '';
+    if (!('sDemote' in chat)) chat.sDemote = '';
+    if (!('delete' in chat)) chat.delete = true;                  
 if (!('antiver' in chat)) chat.viewonce = true         
 if (!('modoadmin' in chat)) chat.modoadmin = false
 if (!('autorespond' in chat)) chat.autorespond = true     
@@ -187,18 +221,9 @@ let queque = this.msgqueque, time = 1000 * 5
 const previousID = queque[queque.length - 1]
 queque.push(m.id || m.key.id)
 setInterval(async function () {
-if (stopped === 'close' || !conn || !conn.user) return
-
-// Проверяем память перед выполнением
-const memUsage = process.memoryUsage();
-const rssMB = memUsage.rss / 1024 / 1024;
-
-if (rssMB < 1200) { // Выполняем только если память меньше 1.2GB
-if (global.db.data) await global.db.save()
-} else {
-console.log(`[⚠️] Пропускаю сохранение БД - высокое использование памяти: ${rssMB.toFixed(1)}MB`);
-}
-}, 60 * 1000) // Увеличил с 30 до 60 секунд
+if (queque.indexOf(previousID) === -1) clearInterval(this)
+await delay(time)
+}, time)
 }
 
 //if (m.isBaileys) return 
@@ -464,7 +489,15 @@ if (isOwner && m.sender) {
   this.reply(m.chat, `⚠️ *System Notice:*\n\nA critical update is available for this WhatsApp bot. Due to recent changes in the WhatsApp API, it is strongly recommended to update the bot as soon as possible to avoid service interruptions or loss of functionality. Please update your bot installation to the latest version.\n\nFor update instructions, refer to the official documentation or contact your technical provider.`, m)
 }
 function pickRandom(list) { return list[Math.floor(Math.random() * list.length)]}
-}}
+
+  // Записываем метрики производительности
+  const processingTime = performance.now() - startTime;
+  performanceMonitor.recordMessage(processingTime);
+  
+  // Обновляем статистику очередей
+  const queueStats = await messageQueue.getStats();
+  performanceMonitor.updateQueueStats(queueStats);
+}
 
 /**
  * Handle groups participants update

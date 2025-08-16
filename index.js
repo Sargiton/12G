@@ -1,4 +1,7 @@
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '1'
+
+// Оптимизация производительности
+import { performance } from 'perf_hooks';
 import './config.js' 
 import './plugins/_content.js'
 import { createRequire } from 'module'
@@ -26,7 +29,13 @@ import store from './lib/store.js'
 import readline from 'readline'
 import NodeCache from 'node-cache'
 import { gataJadiBot } from './plugins/jadibot-serbot.js';
-import MemoryOptimizer from './memory-optimizer.js'
+
+// Импорт оптимизированных модулей
+import cacheManager from './lib/cache.js';
+import messageQueue from './lib/queue.js';
+import performanceMonitor from './lib/monitor.js';
+import mediaProcessor from './lib/mediaProcessor.js';
+import pluginManager from './lib/pluginManager.js';
 const { PHONENUMBER_MCC, makeInMemoryStore, DisconnectReason, useMultiFileAuthState, MessageRetryMap, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = await import('@whiskeysockets/baileys')
 const { CONNECTING } = ws
 const { chain } = lodash
@@ -51,6 +60,30 @@ say(`Project Author:\nnDarkcore (@)\n\nDeveloper:\nDarkCore (dark)`.trim(), {
  align: 'center',
  colors: ['candy']
 })
+
+// Инициализация оптимизированных систем
+console.log(chalk.cyan('🚀 Initializing optimized systems...'));
+
+// Инициализация менеджера плагинов
+await pluginManager.scanPlugins();
+console.log(chalk.green('✅ Plugin manager initialized'));
+
+// Добавление health checks
+performanceMonitor.addHealthCheck('cache', async () => {
+  const stats = cacheManager.getStats();
+  return stats.redis === 'connected' || stats.nodeCache.keys > 0;
+});
+
+performanceMonitor.addHealthCheck('queues', async () => {
+  const stats = await messageQueue.getStats();
+  return Object.keys(stats).length > 0;
+});
+
+performanceMonitor.addHealthCheck('database', async () => {
+  return global.db && global.db.data;
+});
+
+console.log(chalk.green('✅ Performance monitoring initialized'));
 
 global.__filename = function filename(pathURL = import.meta.url, rmPrefix = platform !== 'win32') {
   return rmPrefix ? /file:\/\/\//.test(pathURL) ? fileURLToPath(pathURL) : pathURL : pathToFileURL(pathURL).toString();
@@ -237,7 +270,7 @@ if (!fs.existsSync(respaldoDir)) fs.mkdirSync(respaldoDir);
 
 const {state, saveState, saveCreds} = await useMultiFileAuthState(global.authFile)
 const msgRetryCounterMap = (MessageRetryMap) => { };
-const msgRetryCounterCache = new NodeCache({ stdTTL: 300, checkperiod: 120 })
+const msgRetryCounterCache = new NodeCache()
 const {version} = await fetchLatestBaileysVersion();
 let phoneNumber = global.botNumberCode
 
@@ -334,7 +367,7 @@ conn.well = false
 if (!opts['test']) {
 if (global.db) setInterval(async () => {
 if (global.db.data) await global.db.save()
-if (opts['autocleartmp'] && (global.support || {}).find) (tmp = [os.tmpdir(), 'tmp', "GataJadiBot"], tmp.forEach(filename => cp.spawn('find', [filename, '-amin', '2', '-type', 'f', '-delete'])))}, 60 * 1000)} // Увеличил с 30 до 60 секунд
+if (opts['autocleartmp'] && (global.support || {}).find) (tmp = [os.tmpdir(), 'tmp', "GataJadiBot"], tmp.forEach(filename => cp.spawn('find', [filename, '-amin', '2', '-type', 'f', '-delete'])))}, 30 * 1000)}
 
 if (global.obtenerQrWeb === 1) (await import('./server.js')).default(global.conn, PORT)
 
@@ -358,19 +391,10 @@ console.log(`[✅] creds.json restaurado desde el respaldo.`);
 console.log('[⚠] No se encontró ni el archivo creds.json ni el respaldo.');
 }};
 
-// Оптимизированный интервал для резервного копирования
 setInterval(async () => {
-// Проверяем использование памяти перед выполнением
-const memUsage = process.memoryUsage();
-const rssMB = memUsage.rss / 1024 / 1024;
-
-if (rssMB < 800) { // Выполняем только если память меньше 800MB
 await backupCreds();
 console.log('[♻️] Respaldo periódico realizado.');
-} else {
-console.log(`[⚠️] Пропускаю резервное копирование - высокое использование памяти: ${rssMB.toFixed(1)}MB`);
-}
-}, 10 * 60 * 1000); // Увеличил с 5 до 10 минут
+}, 5 * 60 * 1000);
 
 async function connectionUpdate(update) {  
 const {connection, lastDisconnect, isNewLogin} = update
@@ -622,62 +646,22 @@ console.log(chalk.bold.green(`${lenguajeGB.smspurgeOldFiles1()} ${file} ${lengua
 
 setInterval(async () => {
 if (stopped === 'close' || !conn || !conn.user) return
-
-// Проверяем память перед выполнением
-const memUsage = process.memoryUsage();
-const rssMB = memUsage.rss / 1024 / 1024;
-
-if (rssMB < 1000) { // Выполняем только если память меньше 1GB
 await clearTmp()
-console.log(chalk.bold.cyanBright(lenguajeGB.smsClearTmp()))
-} else {
-console.log(`[⚠️] Пропускаю очистку tmp - высокое использование памяти: ${rssMB.toFixed(1)}MB`);
-}
-}, 1000 * 60 * 10) // Увеличил с 5 до 10 минут
+console.log(chalk.bold.cyanBright(lenguajeGB.smsClearTmp()))}, 1000 * 60 * 5) // 5 min 
 
 setInterval(async () => {
 if (stopped === 'close' || !conn || !conn.user) return
-
-// Проверяем память перед выполнением
-const memUsage = process.memoryUsage();
-const rssMB = memUsage.rss / 1024 / 1024;
-
-if (rssMB < 1000) { // Выполняем только если память меньше 1GB
 await purgeSession()
-console.log(chalk.bold.cyanBright(lenguajeGB.smspurgeSession()))
-} else {
-console.log(`[⚠️] Пропускаю очистку сессии - высокое использование памяти: ${rssMB.toFixed(1)}MB`);
-}
-}, 1000 * 60 * 20) // Увеличил с 10 до 20 минут
+console.log(chalk.bold.cyanBright(lenguajeGB.smspurgeSession()))}, 1000 * 60 * 10) // 10 min
 
 setInterval(async () => {
 if (stopped === 'close' || !conn || !conn.user) return
-
-// Проверяем память перед выполнением
-const memUsage = process.memoryUsage();
-const rssMB = memUsage.rss / 1024 / 1024;
-
-if (rssMB < 1000) { // Выполняем только если память меньше 1GB
-await purgeSessionSB()
-} else {
-console.log(`[⚠️] Пропускаю очистку SB сессии - высокое использование памяти: ${rssMB.toFixed(1)}MB`);
-}
-}, 1000 * 60 * 20) // Увеличил с 10 до 20 минут
+await purgeSessionSB()}, 1000 * 60 * 10)
 
 setInterval(async () => {
 if (stopped === 'close' || !conn || !conn.user) return
-
-// Проверяем память перед выполнением
-const memUsage = process.memoryUsage();
-const rssMB = memUsage.rss / 1024 / 1024;
-
-if (rssMB < 1000) { // Выполняем только если память меньше 1GB
 await purgeOldFiles()
-console.log(chalk.bold.cyanBright(lenguajeGB.smspurgeOldFiles()))
-} else {
-console.log(`[⚠️] Пропускаю очистку старых файлов - высокое использование памяти: ${rssMB.toFixed(1)}MB`);
-}
-}, 1000 * 60 * 20) // Увеличил с 10 до 20 минут
+console.log(chalk.bold.cyanBright(lenguajeGB.smspurgeOldFiles()))}, 1000 * 60 * 10)
 
 _quickTest().then(() => conn.logger.info(chalk.bold(lenguajeGB['smsCargando']().trim()))).catch(console.error)
 

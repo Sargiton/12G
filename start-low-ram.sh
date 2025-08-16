@@ -26,13 +26,13 @@ free -h
 
 # Запускаем боты с ограничениями памяти
 echo "🚀 Запуск WhatsApp бота..."
-pm2 start ecosystem-low-ram.config.js --only whatsapp-bot
+pm2 start ecosystem-low-ram.config.cjs --only whatsapp-bot
 
 # Ждем немного
 sleep 5
 
 echo "🚀 Запуск Telegram бота..."
-pm2 start ecosystem-low-ram.config.js --only telegram-bot
+pm2 start ecosystem-low-ram.config.cjs --only telegram-bot
 
 # Ждем запуска
 sleep 10

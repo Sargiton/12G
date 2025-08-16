@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'whatsapp-bot',
-      script: 'index.js',
+      script: 'index-simple.js',
       cwd: './',
       instances: 1,
       exec_mode: 'fork',

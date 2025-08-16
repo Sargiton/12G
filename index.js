@@ -31,11 +31,11 @@ import NodeCache from 'node-cache'
 import { gataJadiBot } from './plugins/jadibot-serbot.js';
 
 // Импорт оптимизированных модулей
-const cacheManager = require('./lib/cache.js');
-const messageQueue = require('./lib/queue.js');
-const performanceMonitor = require('./lib/monitor.js');
-const mediaProcessor = require('./lib/mediaProcessor.js');
-const pluginManager = require('./lib/pluginManager.js');
+import cacheManager from './lib/cache.js';
+import messageQueue from './lib/queue.js';
+import performanceMonitor from './lib/monitor.js';
+import mediaProcessor from './lib/mediaProcessor.js';
+import pluginManager from './lib/pluginManager.js';
 const { PHONENUMBER_MCC, makeInMemoryStore, DisconnectReason, useMultiFileAuthState, MessageRetryMap, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = await import('@whiskeysockets/baileys')
 const { CONNECTING } = ws
 const { chain } = lodash

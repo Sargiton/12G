@@ -33,14 +33,14 @@
     "js-whatsapp",
     "baileys-md"
   ],
-  "homepage": "https://github.com/fartovii2311/142",
+  "homepage": "https://github.com/Sargiton/12G",
   "author": "DARK-CODE",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fartovii2311/142.git"
+    "url": "git+https://github.com/Sargiton/12G.git"
   },
   "bugs": {
-    "url": "https://github.com/fartovii2311/142/issues"
+    "url": "https://github.com/Sargiton/12G/issues"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
@@ -50,7 +50,7 @@
     "@green-code/music-track-data": "^2.0.3",
     "@ibaraki-douji/pixivts": "^2.4.1",
     "@shineiichijo/marika": "^2.0.6",
-    "baileys": "6.7.0",
+    "@whiskeysockets/baileys": "6.5.0",
     "acrcloud": "^1.4.0",
     "api-dylux": "^1.5.6",
     "archiver": "^7.0.1",
@@ -89,28 +89,16 @@
     "node-cache": "^5.1.2",
     "node-fetch": "^3.2.0",
     "node-gtts": "^2.0.2",
-    "node-telegram-bot-api": "^0.64.0",
+    "node-telegram-bot-api": "^0.66.0",
     "pino": "^8.17.2",
     "qrcode": "^1.5.3",
     "qrcode-terminal": "^0.12.0",
     "sharp": "^0.32.6",
     "spinnies": "^0.5.1",
-    "sticker-pack-creator": "^1.0.2",
     "string-similarity": "^4.0.4",
-    "sweetalert2": "^11.10.1",
-    "swear-words": "^3.0.0",
-    "tesseract.js": "^5.0.4",
-    "tiktok-scraper": "^1.4.40",
-    "tiktok-api": "^1.0.0",
-    "translate-google": "^1.5.5",
-    "translate-google-api": "^1.0.0",
-    "twitter-api-v2": "^1.15.2",
-    "twitter-url-direct": "^1.0.12",
-    "url-exist": "^3.0.0",
-    "util": "^0.12.5",
+    "syntax-error": "^1.4.0",
     "uuid": "^9.0.0",
     "wa-sticker-formatter": "^4.3.2",
-    "webp-converter": "^2.3.3",
     "yargs": "^17.7.2",
     "ytdl-core": "^4.11.5"
   },

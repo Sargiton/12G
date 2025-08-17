@@ -30,7 +30,8 @@ async function generateQR() {
                 keys: state.keys,
             },
             printQRInTerminal: true,
-            logger: { level: 'silent' }
+            logger: { level: 'silent' },
+            browser: ['WhatsApp Bot', 'Chrome', '1.0.0']
         });
 
         // Обработчик обновлений соединения

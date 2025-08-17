@@ -1,0 +1,42 @@
+ПРОСТОЕ ИСПРАВЛЕНИЕ TELEGRAM БОТА
+================================
+
+ПРОБЛЕМА: PM2 кэширует старое имя "ecosystem-telegram"
+
+РЕШЕНИЕ - ВЫПОЛНИТЕ ЭТИ КОМАНДЫ ПО ПОРЯДКУ:
+
+1. Остановить ВСЕ процессы:
+pm2 stop all
+pm2 delete all
+
+2. Создать правильный конфиг:
+cat > ecosystem-telegram.cjs << 'EOF'
+module.exports = {
+    apps: [
+        {
+            name: 'telegram-bot',
+            script: 'telegram-bot.cjs',
+            cwd: './123',
+            autorestart: true,
+            watch: false,
+            env: { NODE_ENV: 'production' },
+            out_file: './123/logs/telegram-bot-out.log',
+            error_file: './123/logs/telegram-bot-error.log'
+        }
+    ]
+}
+EOF
+
+3. Запустить WhatsApp бота:
+pm2 start ecosystem-old.config.cjs
+
+4. Запустить Telegram бота:
+pm2 start ecosystem-telegram.cjs
+
+5. Сохранить и проверить:
+pm2 save
+pm2 list
+pm2 logs telegram-bot --lines 20
+
+АЛЬТЕРНАТИВНО - ОДНА КОМАНДА:
+curl -s https://raw.githubusercontent.com/Sargiton/12G/master/fix-telegram-final.sh | bash

@@ -44,7 +44,7 @@ npm install --force
 
 # Устанавливаем baileys отдельно и принудительно
 echo "📦 Устанавливаем baileys принудительно..."
-npm install @whiskeysockets/baileys@6.5.0 --save-exact --force
+npm install @whiskeysockets/baileys@6.7.0 --save-exact --force
 
 # Проверяем установку baileys
 echo "✅ Проверяем установку baileys..."

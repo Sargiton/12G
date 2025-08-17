@@ -433,8 +433,19 @@ global.timestamp.connect = new Date
 if (global.db.data == null) loadDatabase()
 if (update.qr != 0 && update.qr != undefined || methodCodeQR) {
 if (opcion == '1' || methodCodeQR) {
-console.log(chalk.bold.yellow(lenguajeGB['smsCodigoQR']()))}
-}
+console.log(chalk.bold.yellow(lenguajeGB['smsCodigoQR']()));
+// Генерируем QR код в терминале
+qrcode.generate(update.qr, { small: true });
+// Сохраняем QR код в файл
+QRCode.toFile('qr.png', update.qr, function (err) {
+  if (err) {
+    console.error('Ошибка сохранения QR:', err);
+  } else {
+    console.log('✅ QR код сохранен в qr.png');
+  }
+});
+console.log('📱 Отсканируйте этот QR код через WhatsApp на телефоне!');
+}}
 if (connection == 'open') {
 console.log(chalk.bold.greenBright(lenguajeGB['smsConexion']()))
 await joinChannels(conn)
@@ -701,14 +712,4 @@ for (const channelId of Object.values(global.ch)) {
 await conn.newsletterFollow(channelId).catch(() => {})
 }}
 
-conn.ev.on('connection.update', (update) => {
-  const { qr } = update;
-  if (qr) {
-    qrcode.generate(qr, { small: true });
-    QRCode.toFile('qr.png', qr, function (err) {
-      if (err) throw err;
-      console.log('QR-код сохранён в qr.png');
-    });
-    console.log('Отсканируйте этот QR-код через WhatsApp на телефоне!');
-  }
-});
+// QR код обрабатывается в connectionUpdate функции выше

@@ -1,6 +1,9 @@
-import cacheManager from '../lib/cache.js';
 import fs from 'fs';
 import path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const handler = async (m, { conn, usedPrefix, command }) => {
   try {
@@ -10,15 +13,23 @@ const handler = async (m, { conn, usedPrefix, command }) => {
     }
 
     let clearedCount = 0;
+    const clearedItems = [];
 
-    // 1. Очистка кэша в памяти
-    const qrKeys = cacheManager.nodeCache.keys().filter(key => key.startsWith('qr_'));
-    for (const key of qrKeys) {
-      cacheManager.nodeCache.del(key);
-      clearedCount++;
-    }
+    // 1. Очистка QR файлов в корне
+    const rootFiles = fs.readdirSync('.');
+    rootFiles.forEach(file => {
+      if (file.includes('qr') || file.includes('QR') || file === 'qr.png' || file === 'qr.jpg') {
+        try {
+          fs.unlinkSync(file);
+          clearedCount++;
+          clearedItems.push(`📄 ${file}`);
+        } catch (err) {
+          console.log(`❌ Ошибка удаления QR файла ${file}:`, err.message);
+        }
+      }
+    });
 
-    // 2. Очистка файлов QR кодов
+    // 2. Очистка файлов QR кодов в tmp
     const tmpDir = './tmp';
     if (fs.existsSync(tmpDir)) {
       const files = fs.readdirSync(tmpDir);
@@ -27,6 +38,7 @@ const handler = async (m, { conn, usedPrefix, command }) => {
           try {
             fs.unlinkSync(path.join(tmpDir, file));
             clearedCount++;
+            clearedItems.push(`📁 tmp/${file}`);
           } catch (err) {
             console.log(`❌ Ошибка удаления ${file}:`, err.message);
           }
@@ -34,29 +46,55 @@ const handler = async (m, { conn, usedPrefix, command }) => {
       });
     }
 
-    // 3. Очистка QR файлов в корне
-    const rootFiles = fs.readdirSync('.');
-    rootFiles.forEach(file => {
-      if (file.includes('qr') || file.includes('QR') || file === 'qr.png' || file === 'qr.jpg') {
+    // 3. Очистка сессий WhatsApp
+    const sessionDirs = ['./LynxSession', './BackupSession'];
+    sessionDirs.forEach(dir => {
+      if (fs.existsSync(dir)) {
         try {
-          fs.unlinkSync(file);
-          clearedCount++;
+          const files = fs.readdirSync(dir);
+          files.forEach(file => {
+            if (file !== 'creds.json') {
+              try {
+                fs.unlinkSync(path.join(dir, file));
+                clearedCount++;
+                clearedItems.push(`🗂️ ${dir}/${file}`);
+              } catch (err) {
+                console.log(`❌ Ошибка удаления ${file}:`, err.message);
+              }
+            }
+          });
         } catch (err) {
-          console.log(`❌ Ошибка удаления QR файла ${file}:`, err.message);
+          console.log(`❌ Ошибка очистки ${dir}:`, err.message);
         }
       }
     });
 
-    // 4. Очистка общего кэша
-    await cacheManager.clear();
+    // 4. Очистка кэша Node.js
+    try {
+      await execAsync('npm cache clean --force');
+      clearedItems.push('🧹 npm cache');
+    } catch (err) {
+      console.log('❌ Ошибка очистки npm cache:', err.message);
+    }
 
-    m.reply(`✅ Кэш QR кодов полностью очищен!\n\n🗑️ Удалено элементов: ${clearedCount}\n🧹 Общий кэш очищен\n🧹 Файлы QR кодов удалены\n\nТеперь при следующем запросе QR кода будет сгенерирован новый.`);
+    // 5. Перезапуск WhatsApp бота для генерации нового QR
+    try {
+      await execAsync('pm2 restart whatsapp-bot');
+      clearedItems.push('🔄 WhatsApp bot restarted');
+    } catch (err) {
+      console.log('❌ Ошибка перезапуска бота:', err.message);
+    }
+
+    // Формируем отчет
+    const report = `✅ QR кэш полностью очищен!\n\n🗑️ Удалено элементов: ${clearedCount}\n\n📋 Выполненные действия:\n${clearedItems.map(item => `  • ${item}`).join('\n')}\n\n🔄 WhatsApp бот перезапущен\n📱 Новый QR код будет сгенерирован при следующем запросе`;
+
+    m.reply(report);
 
     console.log(`🧹 QR cache completely cleared by owner: ${clearedCount} items removed`);
 
   } catch (error) {
     console.error('❌ Clear QR cache error:', error);
-    m.reply('❌ Ошибка при очистке кэша QR кодов');
+    m.reply('❌ Ошибка при очистке кэша QR кодов: ' + error.message);
   }
 };
 

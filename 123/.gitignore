@@ -1,0 +1,28 @@
+# Ignore dependencies
+node_modules/
+
+# Sessions and backups
+LynxSession/
+LynxJadiBot/
+BackupSession/
+
+# Logs and runtime
+logs/
+*.log
+*.pid
+qr.png
+tmp/
+.cache/
+
+# Env/config
+.env
+.env.*
+*.local
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+

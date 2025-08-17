@@ -1,0 +1,60 @@
+ИСПРАВЛЕНИЕ ИМЕН PM2 В TELEGRAM БОТЕ
+====================================
+
+ПРОБЛЕМА: В telegram-bot.cjs указано 'whatsapp-bot', но бот запущен как 'whatsapp-old'
+
+РЕШЕНИЕ - ВЫПОЛНИТЕ ЭТИ КОМАНДЫ:
+
+1. Исправить имя в telegram-bot.cjs:
+sed -i "s/WHATSAPP_PM2_NAME = 'whatsapp-bot'/WHATSAPP_PM2_NAME = 'whatsapp-old'/g" 123/telegram-bot.cjs
+
+2. Остановить все процессы:
+pm2 stop all
+pm2 delete all
+
+3. Создать правильные конфиги:
+cat > ecosystem-old.config.cjs << 'EOF'
+module.exports = {
+    apps: [
+        {
+            name: 'whatsapp-old',
+            script: 'index.js',
+            cwd: './123',
+            autorestart: true,
+            watch: false,
+            env: { NODE_ENV: 'production', PORT: '3300' },
+            out_file: './123/logs/whatsapp-old-out.log',
+            error_file: './123/logs/whatsapp-old-error.log'
+        }
+    ]
+}
+EOF
+
+cat > ecosystem-telegram.cjs << 'EOF'
+module.exports = {
+    apps: [
+        {
+            name: 'telegram-bot',
+            script: 'telegram-bot.cjs',
+            cwd: './123',
+            autorestart: true,
+            watch: false,
+            env: { NODE_ENV: 'production' },
+            out_file: './123/logs/telegram-bot-out.log',
+            error_file: './123/logs/telegram-bot-error.log'
+        }
+    ]
+}
+EOF
+
+4. Запустить ботов:
+pm2 start ecosystem-old.config.cjs
+pm2 start ecosystem-telegram.cjs
+pm2 save
+
+5. Проверить:
+pm2 list
+pm2 logs telegram-bot --lines 20
+
+АЛЬТЕРНАТИВНО - ОДНА КОМАНДА:
+curl -s https://raw.githubusercontent.com/Sargiton/12G/master/fix-telegram-names.sh | bash

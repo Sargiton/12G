@@ -1,0 +1,41 @@
+БЫСТРОЕ ИСПРАВЛЕНИЕ TELEGRAM БОТА
+================================
+
+ПРОБЛЕМА: Telegram бот запущен как "ecosystem-telegram" вместо "telegram-bot"
+
+РЕШЕНИЕ - ВЫПОЛНИТЕ ЭТИ КОМАНДЫ:
+
+1. Остановить все Telegram процессы:
+pm2 stop ecosystem-telegram
+pm2 delete ecosystem-telegram
+pm2 stop telegram-bot
+pm2 delete telegram-bot
+
+2. Создать правильный конфиг:
+cat > ecosystem-telegram.cjs << 'EOF'
+module.exports = {
+    apps: [
+        {
+            name: 'telegram-bot',
+            script: 'telegram-bot.cjs',
+            cwd: './123',
+            autorestart: true,
+            watch: false,
+            env: { NODE_ENV: 'production' },
+            out_file: './123/logs/telegram-bot-out.log',
+            error_file: './123/logs/telegram-bot-error.log'
+        }
+    ]
+}
+EOF
+
+3. Запустить с правильным именем:
+pm2 start ecosystem-telegram.cjs
+pm2 save
+
+4. Проверить статус:
+pm2 list
+pm2 logs telegram-bot --lines 20
+
+АЛЬТЕРНАТИВНО - ОДНА КОМАНДА:
+curl -s https://raw.githubusercontent.com/Sargiton/12G/master/fix-telegram-name.sh | bash

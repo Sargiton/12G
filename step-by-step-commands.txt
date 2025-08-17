@@ -1,0 +1,91 @@
+# КОМАНДЫ ДЛЯ ПОШАГОВОЙ УСТАНОВКИ
+# Копируйте и вставляйте каждую команду по очереди
+
+# ШАГ 1: Обновление системы
+apt update -y && apt upgrade -y
+
+# ШАГ 2: Установка пакетов
+apt install -y curl wget git nano htop screen unzip
+
+# ШАГ 3: Установка Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
+
+# ШАГ 4: Установка PM2
+npm install -g pm2
+
+# ШАГ 5: Остановка процессов
+pm2 stop all 2>/dev/null && pm2 delete all 2>/dev/null && pkill -f node 2>/dev/null
+
+# ШАГ 6: Клонирование проекта
+cd /root && rm -rf 12G && git clone https://github.com/Sargiton/12G.git && cd 12G
+
+# ШАГ 7: Очистка и установка
+rm -rf node_modules package-lock.json LynxSession/* BackupSession/* qr.png tmp/* && cp package-clean.json package.json && npm install --force && npm install baileys@latest --save --force
+
+# ШАГ 8: Создание папок
+mkdir -p LynxSession BackupSession tmp logs
+
+# ШАГ 9: Обновление импортов
+find . -name "*.js" -type f -exec sed -i 's/@whiskeysockets\/baileys/baileys/g' {} \;
+
+# ШАГ 10: Проверка синтаксиса
+node -c index.js && node -c telegram-bot.cjs
+
+# ШАГ 11: Создание конфигурации PM2
+cat > ecosystem-final.config.cjs << 'EOF'
+module.exports = {
+  apps: [
+    {
+      name: 'whatsapp-bot',
+      script: 'index.js',
+      cwd: '/root/12G',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '200M',
+      env: { NODE_ENV: 'production', NODE_OPTIONS: '--max-old-space-size=512' },
+      error_file: './logs/whatsapp-error-0.log',
+      out_file: './logs/whatsapp-out-0.log',
+      log_file: './logs/whatsapp-combined-0.log',
+      time: true
+    },
+    {
+      name: 'telegram-bot',
+      script: 'telegram-bot.cjs',
+      cwd: '/root/12G',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '100M',
+      env: { NODE_ENV: 'production' },
+      error_file: './logs/telegram-error-1.log',
+      out_file: './logs/telegram-out-1.log',
+      log_file: './logs/telegram-combined-1.log',
+      time: true
+    }
+  ]
+};
+EOF
+
+# ШАГ 12: Запуск ботов
+pm2 start ecosystem-final.config.cjs
+
+# ШАГ 13: Настройка автозапуска
+pm2 startup && pm2 save
+
+# ШАГ 14: Проверка результата
+pm2 list
+
+# ДОПОЛНИТЕЛЬНЫЕ КОМАНДЫ:
+
+# Просмотр логов
+pm2 logs
+
+# Мониторинг
+pm2 monit
+
+# Перезапуск ботов
+pm2 restart all
+
+# Остановка ботов
+pm2 stop all

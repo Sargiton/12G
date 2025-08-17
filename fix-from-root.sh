@@ -24,11 +24,34 @@ else
     exit 1
 fi
 
-if [ -f "123/ecosystem-old.config.cjs" ]; then
-    echo "✅ ecosystem-old.config.cjs найден"
+# Создаем ecosystem config если его нет
+if [ ! -f "123/ecosystem-old.config.cjs" ]; then
+    echo "📝 Создаем ecosystem-old.config.cjs..."
+    cat > 123/ecosystem-old.config.cjs << 'EOF'
+module.exports = {
+  apps: [
+    {
+      name: 'whatsapp-old',
+      script: 'index.js',
+      cwd: './123',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      env: {
+        NODE_ENV: 'production'
+      },
+      out_file: './logs/out.log',
+      error_file: './logs/error.log',
+      log_file: './logs/combined.log',
+      time: true
+    }
+  ]
+};
+EOF
+    echo "✅ ecosystem-old.config.cjs создан"
 else
-    echo "❌ ecosystem-old.config.cjs не найден"
-    exit 1
+    echo "✅ ecosystem-old.config.cjs найден"
 fi
 
 # Создаем папки

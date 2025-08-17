@@ -1,77 +1,57 @@
-import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } from 'baileys';
-import qrcode from 'qrcode-terminal';
-import QRCode from 'qrcode';
-import fs from 'fs';
-
-console.log('🚀 Тест QR кода локально...');
-
-// Создаем папку для сессии если её нет
-if (!fs.existsSync('./LynxSession')) {
-    fs.mkdirSync('./LynxSession', { recursive: true });
-}
+import { makeWASocket, DisconnectReason, useMultiFileAuthState } from 'baileys'
+import pino from 'pino'
+import qrcode from 'qrcode-terminal'
 
 async function testQR() {
     try {
-        console.log('📱 Инициализация Baileys...');
+        console.log('🔍 Тестируем QR генерацию...')
         
-        // Получаем состояние аутентификации
-        const { state, saveCreds } = await useMultiFileAuthState('./LynxSession');
+        const { state, saveCreds } = await useMultiFileAuthState('LynxSession')
         
-        // Получаем версию Baileys
-        const { version } = await fetchLatestBaileysVersion();
-        
-        console.log('🔗 Создание соединения...');
-        
-        // Создаем соединение
-        const conn = makeWASocket({
-            version,
-            auth: {
-                creds: state.creds,
-                keys: state.keys,
-            },
+        const sock = makeWASocket({
+            auth: state,
             printQRInTerminal: true,
-            logger: { level: 'silent' }
-        });
-
-        // Обработчик обновлений соединения
-        conn.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect, qr } = update;
+            logger: pino({ level: 'silent' }),
+            browser: ['Lynx Bot', 'Chrome', '1.0.0']
+        })
+        
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update
             
             if (qr) {
-                console.log('📱 QR код получен!');
-                
-                // Показываем QR в терминале
-                qrcode.generate(qr, { small: true });
+                console.log('✅ QR код сгенерирован успешно!')
+                qrcode.generate(qr, { small: true })
                 
                 // Сохраняем QR в файл
-                try {
-                    await QRCode.toFile('qr.png', qr);
-                    console.log('✅ QR код сохранен в qr.png');
-                } catch (err) {
-                    console.error('❌ Ошибка сохранения QR:', err);
-                }
-            }
-            
-            if (connection === 'open') {
-                console.log('✅ Подключение установлено!');
-                process.exit(0);
+                const fs = await import('fs')
+                const qrCode = await import('qrcode')
+                const qrBuffer = await qrCode.toBuffer(qr)
+                fs.writeFileSync('qr.png', qrBuffer)
+                console.log('✅ QR код сохранен в qr.png')
+                
+                // Останавливаем тест
+                process.exit(0)
             }
             
             if (connection === 'close') {
-                console.log('❌ Соединение закрыто');
-                process.exit(1);
+                const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
+                console.log('❌ Соединение закрыто:', lastDisconnect?.error, ', переподключение:', shouldReconnect)
+                if (!shouldReconnect) {
+                    process.exit(1)
+                }
             }
-        });
-
-        // Обработчик обновления учетных данных
-        conn.ev.on('creds.update', saveCreds);
+        })
         
-        console.log('⏳ Ожидание QR кода...');
+        // Ждем 30 секунд
+        setTimeout(() => {
+            console.log('⏰ Время ожидания истекло')
+            process.exit(1)
+        }, 30000)
         
     } catch (error) {
-        console.error('❌ Ошибка:', error);
-        process.exit(1);
+        console.error('❌ Ошибка тестирования QR:', error)
+        process.exit(1)
     }
 }
 
-testQR();
+testQR()

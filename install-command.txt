@@ -1,0 +1,84 @@
+# КОПИРУЙТЕ И ВСТАВЬТЕ ЭТУ КОМАНДУ В ТЕРМИНАЛ СЕРВЕРА:
+
+curl -s https://raw.githubusercontent.com/Sargiton/12G/master/one-command-install.sh | bash
+
+# ИЛИ ЕСЛИ CURL НЕ РАБОТАЕТ:
+
+wget -qO- https://raw.githubusercontent.com/Sargiton/12G/master/one-command-install.sh | bash
+
+# ИЛИ ЕСЛИ НИЧЕГО НЕ РАБОТАЕТ, ВЫПОЛНИТЕ ЭТИ КОМАНДЫ ПО ОЧЕРЕДИ:
+
+# 1. Обновление системы
+apt update -y && apt upgrade -y
+
+# 2. Установка пакетов
+apt install -y curl wget git nano htop screen unzip
+
+# 3. Установка Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
+
+# 4. Установка PM2
+npm install -g pm2
+
+# 5. Остановка процессов
+pm2 stop all 2>/dev/null && pm2 delete all 2>/dev/null && pkill -f node 2>/dev/null
+
+# 6. Клонирование проекта
+cd /root && rm -rf 12G && git clone https://github.com/Sargiton/12G.git && cd 12G
+
+# 7. Очистка и установка
+rm -rf node_modules package-lock.json LynxSession/* BackupSession/* qr.png tmp/* && cp package-clean.json package.json && npm install --force && npm install baileys@latest --save --force
+
+# 8. Создание папок
+mkdir -p LynxSession BackupSession tmp logs
+
+# 9. Обновление импортов
+find . -name "*.js" -type f -exec sed -i 's/@whiskeysockets\/baileys/baileys/g' {} \;
+
+# 10. Проверка синтаксиса
+node -c index.js && node -c telegram-bot.cjs
+
+# 11. Создание конфигурации PM2
+cat > ecosystem-final.config.cjs << 'EOF'
+module.exports = {
+  apps: [
+    {
+      name: 'whatsapp-bot',
+      script: 'index.js',
+      cwd: '/root/12G',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '200M',
+      env: { NODE_ENV: 'production', NODE_OPTIONS: '--max-old-space-size=512' },
+      error_file: './logs/whatsapp-error-0.log',
+      out_file: './logs/whatsapp-out-0.log',
+      log_file: './logs/whatsapp-combined-0.log',
+      time: true
+    },
+    {
+      name: 'telegram-bot',
+      script: 'telegram-bot.cjs',
+      cwd: '/root/12G',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '100M',
+      env: { NODE_ENV: 'production' },
+      error_file: './logs/telegram-error-1.log',
+      out_file: './logs/telegram-out-1.log',
+      log_file: './logs/telegram-combined-1.log',
+      time: true
+    }
+  ]
+};
+EOF
+
+# 12. Запуск ботов
+pm2 start ecosystem-final.config.cjs
+
+# 13. Настройка автозапуска
+pm2 startup && pm2 save
+
+# 14. Проверка результата
+sleep 5 && echo "🎉 УСТАНОВКА ЗАВЕРШЕНА!" && pm2 list && echo "📱 Отправьте /qr в Telegram бота"

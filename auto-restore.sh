@@ -46,10 +46,16 @@ cd 12G
 
 # 3. Устанавливаем зависимости
 log_info "Устанавливаем зависимости..."
-npm install
+npm install --force
 if [ $? -ne 0 ]; then
-    log_error "Ошибка установки зависимостей!"
-    exit 1
+    log_warning "Первый npm install не удался, пробуем с очисткой..."
+    rm -rf node_modules package-lock.json
+    npm cache clean --force
+    npm install --force
+    if [ $? -ne 0 ]; then
+        log_error "Ошибка установки зависимостей!"
+        exit 1
+    fi
 fi
 
 # 4. Создаем .env файл
@@ -76,42 +82,62 @@ mkdir -p database/msgs
 mkdir -p database/sticker
 mkdir -p database/stats
 
-# 7. Тестируем QR код
-log_info "Тестируем генерацию QR кода..."
-node test-qr.js &
-QR_PID=$!
-
-# Ждем 10 секунд для генерации QR
-sleep 10
-
-# Проверяем, создался ли QR код
-if [ -f "qr.png" ]; then
-    log_success "QR код успешно создан!"
-    kill $QR_PID 2>/dev/null
-else
-    log_warning "QR код не создался, пробуем принудительную генерацию..."
-    kill $QR_PID 2>/dev/null
-    node force-qr.js &
-    sleep 5
+# 7. Проверяем установку зависимостей
+log_info "Проверяем установку зависимостей..."
+if [ ! -d "node_modules/@whiskeysockets" ]; then
+    log_error "Пакет @whiskeysockets/baileys не установлен!"
+    log_info "Повторно устанавливаем зависимости..."
+    npm install @whiskeysockets/baileys --force
+    npm install qrcode-terminal qrcode --force
 fi
 
-# 8. Запускаем боты через PM2
+# 8. Тестируем QR код
+log_info "Тестируем генерацию QR кода..."
+if [ -f "test-qr.js" ]; then
+    node test-qr.js &
+    QR_PID=$!
+    
+    # Ждем 10 секунд для генерации QR
+    sleep 10
+    
+    # Проверяем, создался ли QR код
+    if [ -f "qr.png" ]; then
+        log_success "QR код успешно создан!"
+        kill $QR_PID 2>/dev/null
+    else
+        log_warning "QR код не создался, пробуем принудительную генерацию..."
+        kill $QR_PID 2>/dev/null
+        if [ -f "force-qr.js" ]; then
+            node force-qr.js &
+            sleep 5
+        fi
+    fi
+else
+    log_warning "Файлы тестирования QR не найдены"
+fi
+
+# 9. Запускаем боты через PM2
 log_info "Запускаем боты через PM2..."
 pm2 stop all 2>/dev/null
 pm2 delete all 2>/dev/null
-pm2 start ecosystem-simple.config.cjs
+if [ -f "ecosystem-simple.config.cjs" ]; then
+    pm2 start ecosystem-simple.config.cjs
+else
+    log_warning "Файл ecosystem-simple.config.cjs не найден, запускаем основной бот..."
+    pm2 start index.js --name "whatsapp-bot"
+fi
 
-# 9. Проверяем статус
+# 10. Проверяем статус
 log_info "Проверяем статус ботов..."
 sleep 3
 pm2 list
 
-# 10. Настраиваем автозапуск
+# 11. Настраиваем автозапуск
 log_info "Настраиваем автозапуск PM2..."
 pm2 startup
 pm2 save
 
-# 11. Создаем скрипт мониторинга памяти
+# 12. Создаем скрипт мониторинга памяти
 log_info "Создаем скрипт мониторинга памяти..."
 cat > /root/monitor-memory.sh << 'EOF'
 #!/bin/bash
@@ -128,11 +154,11 @@ EOF
 
 chmod +x /root/monitor-memory.sh
 
-# 12. Запускаем мониторинг памяти
+# 13. Запускаем мониторинг памяти
 log_info "Запускаем мониторинг памяти..."
 nohup /root/monitor-memory.sh > /var/log/memory-monitor.log 2>&1 &
 
-# 13. Создаем скрипт быстрого перезапуска
+# 14. Создаем скрипт быстрого перезапуска
 log_info "Создаем скрипт быстрого перезапуска..."
 cat > /root/restart-bots.sh << 'EOF'
 #!/bin/bash
@@ -148,7 +174,7 @@ EOF
 
 chmod +x /root/restart-bots.sh
 
-# 14. Создаем скрипт очистки QR кэша
+# 15. Создаем скрипт очистки QR кэша
 log_info "Создаем скрипт очистки QR кэша..."
 cat > /root/clear-qr.sh << 'EOF'
 #!/bin/bash
@@ -168,7 +194,7 @@ EOF
 
 chmod +x /root/clear-qr.sh
 
-# 15. Финальная проверка
+# 16. Финальная проверка
 log_info "Выполняем финальную проверку..."
 sleep 5
 

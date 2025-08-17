@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "🔧 ПОЛНОЕ ИСПРАВЛЕНИЕ ВСЕХ ПРОБЛЕМ"
-echo "==================================="
+echo "🚀 ПОЛНОЕ ВОССТАНОВЛЕНИЕ С НУЛЯ"
+echo "================================"
 
 # Цвета
 RED='\033[0;31m'
@@ -32,37 +32,34 @@ pm2 stop all 2>/dev/null
 pm2 delete all 2>/dev/null
 pkill -f node 2>/dev/null
 
-# 2. Проверяем и клонируем проект
-if [ ! -d "/root/12G" ]; then
-    log_info "Папка 12G не найдена, клонируем проект с GitHub..."
-    cd /root
-    git clone https://github.com/Sargiton/12G.git
-    if [ $? -ne 0 ]; then
-        log_error "Ошибка клонирования проекта!"
-        exit 1
-    fi
+# 2. Удаляем старую папку если есть
+if [ -d "/root/12G" ]; then
+    log_info "Удаляем старую папку 12G..."
+    rm -rf /root/12G
+fi
+
+# 3. Клонируем проект заново
+log_info "Клонируем проект с GitHub..."
+cd /root
+git clone https://github.com/Sargiton/12G.git
+if [ $? -ne 0 ]; then
+    log_error "Ошибка клонирования проекта!"
+    exit 1
 fi
 
 cd /root/12G
 
-# 3. Полностью очищаем зависимости
-log_info "Полностью очищаем зависимости..."
-rm -rf node_modules
-rm -f package-lock.json
-npm cache clean --force
-
-# 4. Обновляем package.json с правильными зависимостями
-log_info "Обновляем package.json..."
-if [ -f "package.json" ]; then
-    # Заменяем старый baileys на новый
-    sed -i 's/"baileys": "^6.6.0"/"@whiskeysockets\/baileys": "^6.6.0"/g' package.json
+# 4. Устанавливаем зависимости
+log_info "Устанавливаем зависимости..."
+npm install --force
+if [ $? -ne 0 ]; then
+    log_warning "Первый npm install не удался, пробуем с очисткой..."
+    rm -rf node_modules package-lock.json
+    npm cache clean --force
+    npm install --force
 fi
 
-# 5. Устанавливаем зависимости принудительно
-log_info "Устанавливаем зависимости принудительно..."
-npm install --force
-
-# 6. Проверяем и устанавливаем критичные пакеты
+# 5. Проверяем критичные пакеты
 log_info "Проверяем критичные пакеты..."
 
 # Проверяем @whiskeysockets/baileys
@@ -83,13 +80,7 @@ if [ ! -d "node_modules/qrcode" ]; then
     npm install qrcode --force
 fi
 
-# 7. Очищаем старые сессии
-log_info "Очищаем старые сессии..."
-rm -rf LynxSession/*
-rm -rf BackupSession/*
-rm -f qr.png
-
-# 8. Создаем необходимые папки
+# 6. Создаем необходимые папки
 log_info "Создаем необходимые папки..."
 mkdir -p LynxSession
 mkdir -p BackupSession
@@ -101,7 +92,11 @@ mkdir -p database/msgs
 mkdir -p database/sticker
 mkdir -p database/stats
 
-# 9. Тестируем QR код
+# 7. Создаем .env файл
+log_info "Создаем .env файл..."
+echo 'NODE_OPTIONS="--max-old-space-size=512"' > .env
+
+# 8. Тестируем QR код
 log_info "Тестируем генерацию QR кода..."
 if [ -f "simple-qr.js" ]; then
     timeout 30 node simple-qr.js &
@@ -122,7 +117,7 @@ else
     log_warning "Файл simple-qr.js не найден"
 fi
 
-# 10. Запускаем боты
+# 9. Запускаем боты
 log_info "Запускаем боты..."
 if [ -f "ecosystem-simple.config.cjs" ]; then
     pm2 start ecosystem-simple.config.cjs
@@ -131,19 +126,55 @@ else
     pm2 start index.js --name "whatsapp-bot"
 fi
 
-# 11. Проверяем статус
+# 10. Проверяем статус
 log_info "Проверяем статус..."
 sleep 5
 pm2 list
 
-# 12. Настраиваем автозапуск
+# 11. Настраиваем автозапуск
 log_info "Настраиваем автозапуск..."
 pm2 startup
 pm2 save
 
+# 12. Создаем полезные скрипты
+log_info "Создаем полезные скрипты..."
+
+# Скрипт перезапуска
+cat > /root/restart-bots.sh << 'EOF'
+#!/bin/bash
+echo "🔄 Перезапуск ботов..."
+pm2 stop all
+pm2 delete all
+sleep 5
+cd /root/12G
+pm2 start ecosystem-simple.config.cjs
+pm2 save
+echo "✅ Боты перезапущены!"
+EOF
+chmod +x /root/restart-bots.sh
+
+# Скрипт очистки QR
+cat > /root/clear-qr.sh << 'EOF'
+#!/bin/bash
+echo "🧹 Очищаю QR кэш..."
+pm2 stop all
+pm2 delete all
+rm -rf /root/12G/tmp/*
+rm -f /root/12G/qr.png
+rm -rf /root/12G/LynxSession/*
+rm -rf /root/12G/BackupSession/*
+cd /root/12G
+pm2 start ecosystem-simple.config.cjs
+echo "✅ QR кэш очищен и боты перезапущены!"
+EOF
+chmod +x /root/clear-qr.sh
+
 echo ""
-echo "🎉 ИСПРАВЛЕНИЕ ЗАВЕРШЕНО!"
-echo "=========================="
+echo "🎉 ВОССТАНОВЛЕНИЕ ЗАВЕРШЕНО!"
+echo "=============================="
+echo ""
+echo "📁 Проект восстановлен в: /root/12G"
+echo "🤖 Боты запущены через PM2"
 echo ""
 echo "📱 Проверьте QR код:"
 if [ -f "qr.png" ]; then
@@ -158,6 +189,7 @@ echo "🔧 Полезные команды:"
 echo "  pm2 list                    - Статус ботов"
 echo "  pm2 logs                    - Логи ботов"
 echo "  node simple-qr.js           - Генерация QR кода"
-echo "  pm2 restart all             - Перезапуск ботов"
+echo "  /root/restart-bots.sh       - Перезапуск ботов"
+echo "  /root/clear-qr.sh           - Очистка QR кэша"
 
-log_success "Исправление завершено!"
+log_success "Восстановление с нуля завершено!"

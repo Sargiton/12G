@@ -7,35 +7,47 @@ import './plugins/_content.js'
 import { createRequire } from 'module'
 import path, { join } from 'path'
 import {fileURLToPath, pathToFileURL} from 'url'
-import { platform } from 'process'
-import * as ws from 'ws'
-import fs, { watchFile, unwatchFile, writeFileSync, readdirSync, statSync, unlinkSync, existsSync, readFileSync, copyFileSync, watch, rmSync, readdir, stat, mkdirSync, rename, writeFile } from 'fs'
-import yargs from 'yargs'
-import { spawn } from 'child_process'
-import lodash from 'lodash'
-import chalk from 'chalk'
-import syntaxerror from 'syntax-error'
-import { tmpdir } from 'os'
-import { format } from 'util'
-import P from 'pino'
-import pino from 'pino'
+import { platform } from 'process';
+import * as ws from 'ws';
+import fs, { watchFile, unwatchFile, writeFileSync, readdirSync, statSync, unlinkSync, existsSync, readFileSync, copyFileSync, watch, rmSync, readdir, stat, mkdirSync, rename, writeFile } from 'fs';
+import yargs from 'yargs';
+import { spawn } from 'child_process';
+import lodash from 'lodash';
+import chalk from 'chalk';
+import syntaxerror from 'syntax-error';
+import { tmpdir } from 'os';
+import { format } from 'util';
+import P from 'pino';
+import pino from 'pino';
 import * as cheerio from 'cheerio';
-import Pino from 'pino'
-import { Boom } from '@hapi/boom'
-import { makeWASocket, protoType, serialize } from './lib/simple.js'
-import {Low, JSONFile} from 'lowdb'
-import { mongoDB, mongoDBV2 } from './lib/mongoDB.js'
-import store from './lib/store.js'
-import readline from 'readline'
-import NodeCache from 'node-cache'
+import Pino from 'pino';
+import { Boom } from '@hapi/boom';
+import { makeWASocket, protoType, serialize } from './lib/simple.js';
+import {Low, JSONFile} from 'lowdb';
+import { mongoDB, mongoDBV2 } from './lib/mongoDB.js';
+import store from './lib/store.js';
+import readline from 'readline';
+import NodeCache from 'node-cache';
 import { gataJadiBot } from './plugins/jadibot-serbot.js';
 
 // Импорт оптимизированных модулей
-import cacheManager from './lib/cache.js';
-import messageQueue from './lib/queue.js';
-import performanceMonitor from './lib/monitor.js';
-import mediaProcessor from './lib/mediaProcessor.js';
-import pluginManager from './lib/pluginManager.js';
+let cacheManager, messageQueue, performanceMonitor, mediaProcessor, pluginManager;
+
+try {
+  const cacheModule = await import('./lib/cache.js');
+  const queueModule = await import('./lib/queue.js');
+  const monitorModule = await import('./lib/monitor.js');
+  const mediaModule = await import('./lib/mediaProcessor.js');
+  const pluginModule = await import('./lib/pluginManager.js');
+  
+  cacheManager = cacheModule.default;
+  messageQueue = queueModule.default;
+  performanceMonitor = monitorModule.default;
+  mediaProcessor = mediaModule.default;
+  pluginManager = pluginModule.default;
+} catch (error) {
+  console.log('Модули оптимизации не найдены, некоторые команды будут недоступны');
+}
 const { PHONENUMBER_MCC, makeInMemoryStore, DisconnectReason, useMultiFileAuthState, MessageRetryMap, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = await import('@whiskeysockets/baileys')
 const { CONNECTING } = ws
 const { chain } = lodash
@@ -62,28 +74,40 @@ say(`Project Author:\nnDarkcore (@)\n\nDeveloper:\nDarkCore (dark)`.trim(), {
 })
 
 // Инициализация оптимизированных систем
-console.log(chalk.cyan('🚀 Initializing optimized systems...'));
+if (pluginManager && performanceMonitor && cacheManager && messageQueue) {
+  console.log(chalk.cyan('🚀 Initializing optimized systems...'));
 
-// Инициализация менеджера плагинов
-await pluginManager.scanPlugins();
-console.log(chalk.green('✅ Plugin manager initialized'));
+  // Инициализация менеджера плагинов
+  try {
+    await pluginManager.scanPlugins();
+    console.log(chalk.green('✅ Plugin manager initialized'));
+  } catch (error) {
+    console.log(chalk.yellow('⚠️ Plugin manager initialization failed'));
+  }
 
-// Добавление health checks
-performanceMonitor.addHealthCheck('cache', async () => {
-  const stats = cacheManager.getStats();
-  return stats.redis === 'connected' || stats.nodeCache.keys > 0;
-});
+  // Добавление health checks
+  try {
+    performanceMonitor.addHealthCheck('cache', async () => {
+      const stats = cacheManager.getStats();
+      return stats.redis === 'connected' || stats.nodeCache.keys > 0;
+    });
 
-performanceMonitor.addHealthCheck('queues', async () => {
-  const stats = await messageQueue.getStats();
-  return Object.keys(stats).length > 0;
-});
+    performanceMonitor.addHealthCheck('queues', async () => {
+      const stats = await messageQueue.getStats();
+      return Object.keys(stats).length > 0;
+    });
 
-performanceMonitor.addHealthCheck('database', async () => {
-  return global.db && global.db.data;
-});
+    performanceMonitor.addHealthCheck('database', async () => {
+      return global.db && global.db.data;
+    });
 
-console.log(chalk.green('✅ Performance monitoring initialized'));
+    console.log(chalk.green('✅ Performance monitoring initialized'));
+  } catch (error) {
+    console.log(chalk.yellow('⚠️ Performance monitoring initialization failed'));
+  }
+} else {
+  console.log(chalk.yellow('⚠️ Optimization modules not available'));
+}
 
 global.__filename = function filename(pathURL = import.meta.url, rmPrefix = platform !== 'win32') {
   return rmPrefix ? /file:\/\/\//.test(pathURL) ? fileURLToPath(pathURL) : pathURL : pathToFileURL(pathURL).toString();
